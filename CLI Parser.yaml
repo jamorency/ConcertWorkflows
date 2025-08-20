@@ -1,0 +1,101 @@
+name: CLI Parser
+platform: node
+blocks:
+  - action: system/Napalm/execute_cli_command
+    name: Napalm_1
+    inputs:
+      - name: authKey
+        value: '"admin/Sac-WAN"'
+      - name: command
+        value: $command
+  - action: system/Common/TextFSM/TextFSM Parse
+    name: TextFSMParse_1
+    inputs:
+      - name: template
+        value: "\"Value Required INTERFACE (\\\\S+)\\nValue LINK_STATUS (.+?)\\nValue\
+          \ PROTOCOL_STATUS (.+?)\\nValue HARDWARE_TYPE ([\\\\w ]+)\\nValue ADDRESS\
+          \ ([a-fA-F0-9]{4}\\\\.[a-fA-F0-9]{4}\\\\.[a-fA-F0-9]{4})\\nValue BIA ([a-fA-F0-9]{4}\\\
+          \\.[a-fA-F0-9]{4}\\\\.[a-fA-F0-9]{4})\\nValue DESCRIPTION (.+?)\\nValue\
+          \ IP_ADDRESS (\\\\d+\\\\.\\\\d+\\\\.\\\\d+\\\\.\\\\d+\\\\/\\\\d+)\\nValue\
+          \ MTU (\\\\d+)\\nValue DUPLEX (([Ff]ull|[Aa]uto|[Hh]alf|[Aa]-).*?)\\nValue\
+          \ SPEED (.*?)\\nValue BANDWIDTH (\\\\d+\\\\s+\\\\w+)\\nValue DELAY (\\\\\
+          d+\\\\s+\\\\S+)\\nValue ENCAPSULATION (.+?)\\nValue LAST_INPUT (.+?)\\nValue\
+          \ LAST_OUTPUT (.+?)\\nValue LAST_OUTPUT_HANG (.+?)\\nValue QUEUE_STRATEGY\
+          \ (.+)\\nValue INPUT_RATE (\\\\d+)\\nValue OUTPUT_RATE (\\\\d+)\\nValue\
+          \ INPUT_PACKETS (\\\\d+)\\nValue OUTPUT_PACKETS (\\\\d+)\\nValue INPUT_ERRORS\
+          \ (\\\\d+)\\nValue CRC (\\\\d+)\\nValue ABORT (\\\\d+)\\nValue OUTPUT_ERRORS\
+          \ (\\\\d+)\\n\\nStart\\n ^\\\\S+\\\\s+is\\\\s+.+?,\\\\s+line\\\\s+protocol.*$$\
+          \ -> Continue.Record\\n ^${INTERFACE}\\\\s+is\\\\s+${LINK_STATUS},\\\\s+line\\\
+          \\s+protocol\\\\s+is\\\\s+${PROTOCOL_STATUS}\\\\s*$$\\n ^\\\\s+Hardware\\\
+          \\s+is\\\\s+${HARDWARE_TYPE} -> Continue\\n ^.+address\\\\s+is\\\\s+${ADDRESS}\\\
+          \\s+\\\\(bia\\\\s+${BIA}\\\\)\\\\s*$$\\n ^\\\\s+Description:\\\\s+${DESCRIPTION}\\\
+          \\s*$$\\n ^\\\\s+Internet\\\\s+address\\\\s+is\\\\s+${IP_ADDRESS}\\\\s*$$\\\
+          n ^\\\\s+MTU\\\\s+${MTU}.*BW\\\\s+${BANDWIDTH}.*DLY\\\\s+${DELAY},\\\\s*$$\\\
+          n ^\\\\s+Encapsulation\\\\s+${ENCAPSULATION},.+$$\\n ^\\\\s+Last\\\\s+input\\\
+          \\s+${LAST_INPUT},\\\\s+output\\\\s+${LAST_OUTPUT},\\\\s+output\\\\s+hang\\\
+          \\s+${LAST_OUTPUT_HANG}\\\\s*$$\\n ^\\\\s+Queueing\\\\s+strategy:\\\\s+${QUEUE_STRATEGY}\\\
+          \\s*$$\\n ^\\\\s+${DUPLEX},\\\\s+${SPEED},.+$$\\n ^.*input\\\\s+rate\\\\\
+          s+${INPUT_RATE}.+$$\\n ^.*output\\\\s+rate\\\\s+${OUTPUT_RATE}.+$$\\n ^\\\
+          \\s+${INPUT_PACKETS}\\\\s+packets\\\\s+input,\\\\s+\\\\d+\\\\s+bytes,\\\\\
+          s+\\\\d+\\\\s+no\\\\s+buffer\\\\s*$$\\n ^\\\\s+${INPUT_ERRORS}\\\\s+input\\\
+          \\s+errors,\\\\s+${CRC}\\\\s+CRC,\\\\s+\\\\d+\\\\s+frame,\\\\s+\\\\d+\\\\\
+          s+overrun,\\\\s+\\\\d+\\\\s+ignored\\\\s*$$\\n ^\\\\s+${INPUT_ERRORS}\\\\\
+          s+input\\\\s+errors,\\\\s+${CRC}\\\\s+CRC,\\\\s+\\\\d+\\\\s+frame,\\\\s+\\\
+          \\d+\\\\s+overrun,\\\\s+\\\\d+\\\\s+ignored,\\\\s+${ABORT}\\\\s+abort\\\\\
+          s*$$\\n ^\\\\s+${OUTPUT_PACKETS}\\\\s+packets\\\\s+output,\\\\s+\\\\d+\\\
+          \\s+bytes,\\\\s+\\\\d+\\\\s+underruns\\\\s*$$\\n ^\\\\s+${OUTPUT_ERRORS}\\\
+          \\s+output\\\\s+errors,\\\\s+\\\\d+\\\\s+collisions,\\\\s+\\\\d+\\\\s+interface\\\
+          \\s+resets\\\\s*$$\\n # Capture time-stamp if vty line has command time-stamping\
+          \ turned on\\n ^Load\\\\s+for\\\\s+\\n ^Time\\\\s+source\\\\s+is\\n\""
+      - name: text_data
+        value: $Napalm_1.result
+  - action: assign
+    name: Assign_CRCs
+    variable: $crc
+    value: "$TextFSMParse_1.result[0].CRC"
+  - action: assign
+    name: Assign_Address
+    variable: $address
+    value: "$TextFSMParse_1.result[0].ADDRESS"
+  - action: assign
+    name: Assign_PRINT
+    variable: $result
+    value: "\"Result is: \\n CRCs: \" + $crc + \" with an ADDRESS: \" + $address"
+variables:
+  - name: result
+    required: false
+    isInput: false
+    isOutput: true
+    level: INTERMEDIATE
+    type:
+      type: any
+    value: '""'
+  - name: command
+    required: false
+    isInput: true
+    isOutput: false
+    level: INTERMEDIATE
+    type:
+      type: string
+    value: '"show interface fa0/0"'
+  - name: crc
+    required: false
+    isInput: false
+    isOutput: false
+    level: INTERMEDIATE
+    type:
+      type: number
+    value: "0"
+  - name: address
+    required: false
+    isInput: false
+    isOutput: false
+    level: INTERMEDIATE
+    type:
+      type: string
+    value: '""'
+meta:
+  version: 5
+  layout: flow
+  workerGroup: default
+finally: null
